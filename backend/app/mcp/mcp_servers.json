@@ -1,0 +1,27 @@
+{
+  "mcp_servers": [
+    {
+      "name": "system_clock_server",
+      "transport": "stdio",
+      "command": "python3",
+      "args": ["-m", "mcp_clock_server"],
+      "scope": "common",
+      "enabled": true
+    },
+    {
+      "name": "crm_database_server",
+      "transport": "sse",
+      "url": "https://mcp.internal.company.com/crm/sse",
+      "scope": ["customer_support", "sales_agent"],
+      "enabled": true
+    },
+    {
+      "name": "form_storage_server",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["./scripts/form_mcp_server.js"],
+      "scope": ["form_collector"],
+      "enabled": true
+    }
+  ]
+}

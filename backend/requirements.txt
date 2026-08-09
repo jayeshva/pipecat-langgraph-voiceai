@@ -1,0 +1,16 @@
+# Pipecat with the LiveKit transport, Silero VAD, Sarvam STT/TTS, and the
+# OpenAI-compatible LLM client (used to reach Sarvam's chat completions API).
+pipecat-ai[livekit,silero,sarvam,openai]>=1.7.0
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic-settings>=2.5.0
+python-dotenv>=1.0.1
+python-multipart>=0.0.9   # Twilio posts form-encoded webhooks
+twilio>=9.0.0             # webhook signature validation (RequestValidator)
+
+# LangGraph and Model Context Protocol (MCP) integrations
+langgraph>=0.2.0
+langchain-core>=0.3.0
+mcp>=1.0.0
+httpx-sse>=0.4.0
