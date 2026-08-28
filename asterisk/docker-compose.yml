@@ -1,0 +1,12 @@
+services:
+  asterisk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: intelliform-asterisk-pbx
+    restart: always
+    network_mode: host
+    volumes:
+      - ./config/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./config/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./config/manager.conf:/etc/asterisk/manager.conf:ro

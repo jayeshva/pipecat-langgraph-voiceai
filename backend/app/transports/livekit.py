@@ -137,10 +137,20 @@ async def run_livekit_session(
         await runner.run(task)
     finally:
         watchdog.cancel()
+        # If this session was superseded or the server is shutting down, the
+        # outer task is cancelled while the pipeline is still live. Tear it down
+        # explicitly, or its STT/TTS websockets stay open and keep logging long
+        # after the call has ended.
+        try:
+            if not task.has_finished():
+                await task.cancel()
+        except Exception as e:
+            logger.debug(f"[{room_name}] Pipeline cancel during teardown: {e}")
         try:
             caller_memory.remember(caller_id, context.get_messages())
         except Exception as e:
             logger.warning(f"[{room_name}] Memory save error: {e}")
+        logger.info(f"[{room_name}] Session ended")
 
 
 def spawn_livekit_agent(

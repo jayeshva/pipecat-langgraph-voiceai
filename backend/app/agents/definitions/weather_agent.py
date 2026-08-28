@@ -9,6 +9,7 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.core.config import settings
+from app.core.prompts import VOICE_OUTPUT_STYLE
 from app.agents.base import BaseVoiceAgent
 from app.agents.registry import agent_registry
 from app.mcp.tools.agent_specific.weather_tools import (
@@ -36,6 +37,7 @@ def _build_langchain_weather_app():
         "- Only if the user asks for a NEW city or location whose weather is not in the conversation history: First call 'get_latitude_longitude' to get coordinates, then call 'get_weather' to fetch live data.\n"
         "- If asked meta questions about your capabilities or tools: Friendly explain your tools ('get_latitude_longitude' and 'get_weather') in 1 short sentence WITHOUT executing any tools."
     )
+    system_prompt = system_prompt + VOICE_OUTPUT_STYLE
     return create_react_agent(model=llm, tools=tools, prompt=system_prompt, checkpointer=checkpointer)
 
 

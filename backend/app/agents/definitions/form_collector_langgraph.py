@@ -9,6 +9,7 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.core.config import settings
+from app.core.prompts import VOICE_OUTPUT_STYLE
 from app.agents.base import BaseVoiceAgent
 from app.agents.registry import agent_registry
 from app.mcp.tools.agent_specific.form_collector_tools import (
@@ -42,6 +43,9 @@ def _build_langchain_form_collector_app():
         "3. AUTOMATED MCP SUBMISSION:\n"
         "   - Once ALL required fields for the form are collected in conversation, IMMEDIATELY call the 'submit_form_response' MCP tool with form_data payload!\n"
         "   - After tool execution, confirm submission warmly to the user with their generated confirmation code."
+        # The graph drives the LLM directly, so the voice style rules have to be
+        # appended here too — BaseVoiceAgent.system_prompt never reaches it.
+        + VOICE_OUTPUT_STYLE
     )
     return create_react_agent(model=llm, tools=tools, prompt=system_prompt, checkpointer=checkpointer)
 

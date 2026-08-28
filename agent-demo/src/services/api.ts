@@ -32,31 +32,52 @@ export async function getMCPTools(): Promise<MCPToolsSummary> {
   return data.tools;
 }
 
+export async function executeMCPTool(toolName: string, args: Record<string, any>, agentId?: string) {
+  const res = await fetch(`${API_BASE}/mcp/call`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tool_name: toolName,
+      args: args,
+      agent_id: agentId || 'common',
+    }),
+  });
+  return handleResponse<{ status: string; result: any }>(res);
+}
+
 export async function connectVoiceSession(agentId: string, callerId?: string, language?: string) {
   const res = await fetch(`${API_BASE}/voice/connect`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       agent_id: agentId,
-      caller_id: callerId,
+      caller_id: callerId || 'browser-user-01',
       language: language || 'en-IN',
     }),
   });
-  return handleResponse<{ url: string; token: string; room: string; caller_id: string; agent_id: string }>(res);
+  const data = await handleResponse<{ token: string; url: string; room_name: string; room?: string; agent_id?: string }>(res);
+  return {
+    ...data,
+    room: data.room || data.room_name,
+    agent_id: data.agent_id || agentId,
+  };
 }
 
-export async function placeOutboundCall(to: string, purpose: string, agentId: string, language?: string) {
+export async function placeOutboundCall(
+  toPhone: string,
+  purpose: string,
+  agentId: string
+): Promise<OutboundCall> {
   const res = await fetch(`${API_BASE}/voice/call`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      to,
-      purpose,
+      to: toPhone,
       agent_id: agentId,
-      language: language || 'en-IN',
+      purpose: purpose,
     }),
   });
-  return handleResponse<{ outbound_id: string; call_sid: string; to: string; status: string; agent_id: string }>(res);
+  return handleResponse<OutboundCall>(res);
 }
 
 export async function getOutboundCalls(): Promise<Record<string, OutboundCall>> {
@@ -65,46 +86,55 @@ export async function getOutboundCalls(): Promise<Record<string, OutboundCall>> 
   return data.calls;
 }
 
+export async function getCallerMemory(callerId: string) {
+  const res = await fetch(`${API_BASE}/memory/${callerId}`);
+  return handleResponse<{ caller_id: string; history: any[] }>(res);
+}
+
 export async function clearCallerMemory(callerId: string) {
-  const res = await fetch(`${API_BASE}/voice/memory/${callerId}`, {
-    method: 'DELETE',
-  });
-  return handleResponse<{ status: string; caller_id: string }>(res);
+  const res = await fetch(`${API_BASE}/memory/${callerId}`, { method: 'DELETE' });
+  return handleResponse<{ status: string }>(res);
 }
 
-export async function executeMCPTool(toolName: string, args: Record<string, any>, agentId: string = 'common') {
-  const res = await fetch(`${API_BASE}/mcp/tools/execute`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      tool_name: toolName,
-      args,
-      agent_id: agentId,
-    }),
-  });
-  return handleResponse<any>(res);
-}
-
-export async function sendChatMessage(
-  agentId: string,
-  callerId: string,
-  messages: Array<{ role: string; content: string }>,
-  language: string = 'en-IN'
-) {
+export async function sendChatMessage(agentId: string, callerId: string, messages: { role: string; content: string }[]) {
   const res = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       agent_id: agentId,
       caller_id: callerId,
-      messages,
-      language,
+      messages: messages,
     }),
   });
   return handleResponse<{
     agent_id: string;
     caller_id: string;
     response: string;
-    tool_executions: Array<{ tool_name: string; args: Record<string, any>; result?: any }>;
+    tool_executions: { tool_name: string; args: any; result: any }[];
   }>(res);
+}
+
+export async function getAsteriskConfig() {
+  const res = await fetch(`${API_BASE}/asterisk/config`);
+  return handleResponse<{
+    status: string;
+    asterisk_host: string;
+    sip_port: number;
+    ami_port: number;
+    websocket_url: string;
+    pjsip_conf: string;
+    extensions_conf: string;
+  }>(res);
+}
+
+export async function triggerAsteriskCall(toExtension: string, agentId: string) {
+  const res = await fetch(`${API_BASE}/asterisk/call`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to_extension: toExtension,
+      agent_id: agentId,
+    }),
+  });
+  return handleResponse<{ status: string; call_id: string; message: string }>(res);
 }

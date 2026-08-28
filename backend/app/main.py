@@ -33,4 +33,10 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 @app.on_event("shutdown")
 async def _shutdown():
+    # Reload in development restarts the process on every edit. Without this,
+    # each restart orphans any live agent — its STT/TTS websockets stay open and
+    # keep logging, which is what makes several agents appear to run at once.
+    from app.api.v1.voice import shutdown_active_agents
+
+    await shutdown_active_agents()
     logger.info("Server shutting down.")

@@ -6,6 +6,8 @@ inherit from BaseVoiceAgent.
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
+
+from app.core.prompts import VOICE_OUTPUT_STYLE
 from app.mcp.manager import mcp_manager
 
 
@@ -23,7 +25,10 @@ class BaseVoiceAgent(ABC):
         self.agent_id = agent_id
         self.name = name
         self.description = description
-        self.system_prompt = system_prompt
+        # Every agent speaks through TTS, so the voice style rules are not
+        # optional per-agent boilerplate — they apply to the channel itself.
+        # Appending here means a new agent cannot forget them.
+        self.system_prompt = (system_prompt + VOICE_OUTPUT_STYLE) if system_prompt else VOICE_OUTPUT_STYLE
         self.language = language
 
     @abstractmethod

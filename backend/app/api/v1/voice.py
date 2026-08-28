@@ -5,6 +5,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from loguru import logger
 from pydantic import BaseModel, Field
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioClient
@@ -17,8 +18,23 @@ from app.transports.twilio_inbound import caller_memory
 
 router = APIRouter(prefix="/voice", tags=["Voice"])
 
-# Active web agents registry task dictionary
-_active_agents = {}
+# Live browser sessions: room -> asyncio.Task, and room -> caller_id so a
+# reconnecting caller can supersede their own previous session.
+_active_agents: dict = {}
+_agent_callers: dict = {}
+
+
+async def shutdown_active_agents() -> None:
+    """Cancel every live session so the process can exit without orphaning
+    STT/TTS websockets or LiveKit rooms."""
+    tasks = [t for t in _active_agents.values() if not t.done()]
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        logger.info(f"Cancelling {len(tasks)} active voice session(s) on shutdown")
+        await asyncio.gather(*tasks, return_exceptions=True)
+    _active_agents.clear()
+    _agent_callers.clear()
 
 
 class ConnectRequest(BaseModel):
@@ -65,9 +81,21 @@ async def connect(req: ConnectRequest):
     bot_token = mint_token(room, f"agent-{room}", f"IntelliForm Agent ({agent_id})")
     caller_token = mint_token(room, caller_id, "Visitor")
 
+    # Reap finished sessions.
     for name, task in list(_active_agents.items()):
         if task.done():
             _active_agents.pop(name, None)
+
+    # Retire any session still running for this caller. A browser refresh or a
+    # second "Connect" click leaves the previous agent alive: it keeps its STT
+    # and TTS websockets open, keeps billing, and both agents then answer the
+    # same person. Sessions are per-caller, so only one may be live at a time.
+    for name, task in list(_active_agents.items()):
+        if _agent_callers.get(name) == caller_id and not task.done():
+            logger.info(f"Superseding previous session {name} for caller {caller_id}")
+            task.cancel()
+            _active_agents.pop(name, None)
+            _agent_callers.pop(name, None)
 
     task = spawn_livekit_agent(
         room_name=room,
@@ -77,6 +105,11 @@ async def connect(req: ConnectRequest):
         agent_id=agent_id,
     )
     _active_agents[room] = task
+    _agent_callers[room] = caller_id
+    # Drop the bookkeeping entry when the agent exits on its own.
+    task.add_done_callback(
+        lambda _t, r=room: (_active_agents.pop(r, None), _agent_callers.pop(r, None))
+    )
 
     return ConnectResponse(
         url=settings.LIVEKIT_URL, token=caller_token, room=room, caller_id=caller_id, agent_id=agent_id

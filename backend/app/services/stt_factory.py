@@ -1,6 +1,6 @@
 """Switchable STT Service Provider Factory.
 
-Supports Sarvam AI, OpenAI (Whisper), Google Gemini, AWS Bedrock (Transcribe), and Azure Speech based on settings.STT_PROVIDER flag.
+Supports Sarvam AI, OpenAI (Whisper), Faster-Whisper (Local), Google Gemini, AWS Bedrock, and Azure Speech based on settings.STT_PROVIDER flag.
 """
 
 from typing import Optional, Any
@@ -33,6 +33,17 @@ def get_stt_service(
         except Exception as e:
             logger.warning(f"OpenAI STT import error ({e}). Falling back to Sarvam STT.")
 
+    elif prov in ("whisper", "faster-whisper", "local"):
+        try:
+            from pipecat.services.whisper.stt import WhisperSTTService
+            return WhisperSTTService(
+                model=settings.WHISPER_MODEL,
+                device=settings.WHISPER_DEVICE,
+                sample_rate=sample_rate,
+            )
+        except Exception as e:
+            logger.warning(f"Faster-Whisper STT import error ({e}). To use local Faster-Whisper, install 'faster-whisper' or 'mlx-whisper'. Falling back to Sarvam STT.")
+
     elif prov == "azure":
         try:
             from pipecat.services.azure.stt import AzureSTTService
@@ -43,6 +54,26 @@ def get_stt_service(
             )
         except Exception as e:
             logger.warning(f"Azure STT import error ({e}). Falling back to Sarvam STT.")
+
+    elif prov == "bedrock":
+        # AWS has no STT under "Bedrock" specifically — Transcribe is the AWS
+        # speech product, using the same account/region/credentials.
+        try:
+            from pipecat.services.aws.stt import AWSTranscribeSTTService
+            kwargs: dict = {}
+            if settings.AWS_ACCESS_KEY_ID:
+                kwargs["aws_access_key_id"] = settings.AWS_ACCESS_KEY_ID
+                kwargs["api_key"] = settings.AWS_SECRET_ACCESS_KEY  # AWS secret key
+                if settings.AWS_SESSION_TOKEN:
+                    kwargs["aws_session_token"] = settings.AWS_SESSION_TOKEN
+            return AWSTranscribeSTTService(
+                region=settings.AWS_REGION,
+                language=language,
+                sample_rate=sample_rate,
+                **kwargs,
+            )
+        except Exception as e:
+            logger.warning(f"AWS Transcribe STT unavailable ({e}). Falling back to Sarvam STT.")
 
     # Default: Sarvam STT Service
     return SarvamSTTService(

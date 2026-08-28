@@ -11,6 +11,8 @@ def _get_active_models():
     llm_prov = settings.LLM_PROVIDER.lower()
     if llm_prov == "openai":
         llm_model = settings.OPENAI_LLM_MODEL
+    elif llm_prov in ("ollama", "local"):
+        llm_model = settings.OLLAMA_MODEL
     elif llm_prov == "gemini":
         llm_model = settings.GEMINI_LLM_MODEL
     elif llm_prov == "bedrock":
@@ -24,6 +26,8 @@ def _get_active_models():
     stt_prov = settings.STT_PROVIDER.lower()
     if stt_prov == "openai":
         stt_model = settings.OPENAI_STT_MODEL
+    elif stt_prov in ("whisper", "faster-whisper", "local"):
+        stt_model = f"faster-whisper-{settings.WHISPER_MODEL}"
     elif stt_prov == "gemini":
         stt_model = settings.GEMINI_STT_MODEL
     else:
@@ -34,6 +38,12 @@ def _get_active_models():
     if tts_prov == "openai":
         tts_model = settings.OPENAI_TTS_MODEL
         tts_voice = settings.OPENAI_TTS_VOICE
+    elif tts_prov in ("piper", "local"):
+        tts_model = "piper-onnx"
+        tts_voice = settings.PIPER_MODEL_PATH.split("/")[-1]
+    elif tts_prov == "kokoro":
+        tts_model = "kokoro-v1"
+        tts_voice = settings.KOKORO_VOICE
     elif tts_prov == "gemini":
         tts_model = settings.GEMINI_TTS_MODEL
         tts_voice = "gemini-native"
